@@ -3,146 +3,546 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src https: http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'">
 <title>Devmark AI · Test de API Keys</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1' y='1' width='30' height='30' rx='8' fill='%230b0a1a'/%3E%3Cpath d='M10 9.5h6.2c4.1 0 6.8 2.6 6.8 6.5s-2.7 6.5-6.8 6.5H10z' fill='none' stroke='%23a397ff' stroke-width='2.4' stroke-linejoin='round'/%3E%3Ccircle cx='16.2' cy='16' r='2.1' fill='%23a397ff'/%3E%3C/svg%3E">
 <style>
-  :root { color-scheme: dark; --bg:#0f141b; --card:#182029; --fg:#e8eef4; --mut:#8fa0b3; --acc:#4da3ff; --ok:#3ecf8e; --err:#ff6b6b; }
+  :root {
+    color-scheme: dark;
+    --bg:#08090c; --bg2:#0c0d11; --surface:#111318; --surface2:#161920; --surface3:#1c2029;
+    --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12);
+    --fg:#f3f4f6; --fg2:#a6abb8; --fg3:#6d7382;
+    --accent:#8b7cff; --accent2:#a397ff; --accent-soft:rgba(139,124,255,.12); --accent-ink:#0b0a1a;
+    --good:#0ca30c; --good-text:#3ecf6b; --warn:#fab219; --crit:#d03b3b; --crit-text:#ff7a7a;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
-  .wrap { max-width:720px; margin:0 auto; padding:16px; }
-  h1 { font-size:1.25rem; margin:8px 0 2px; }
-  p.sub { color:var(--mut); font-size:.85rem; margin:0 0 12px; }
-  .card { background:var(--card); border:1px solid #26313d; border-radius:12px; padding:12px; margin-bottom:12px; }
-  label { display:block; font-size:.75rem; color:var(--mut); margin:8px 0 4px; }
-  input,select,textarea,button { font-size:.95rem; border-radius:8px; border:1px solid #2c3947; }
-  input,select,textarea { width:100%; padding:10px; background:#0d1319; color:var(--fg); }
-  .row { display:flex; gap:8px; }
-  .row > * { flex:1; }
-  button { padding:10px 14px; background:var(--acc); color:#04121f; border:none; font-weight:600; cursor:pointer; }
-  button.ghost { background:transparent; color:var(--acc); border:1px solid var(--acc); }
-  button:disabled { opacity:.5; cursor:wait; }
-  #log { min-height:200px; max-height:50vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
-  .msg { padding:10px 12px; border-radius:10px; white-space:pre-wrap; word-break:break-word; }
-  .user { background:#23405e; align-self:flex-end; max-width:90%; }
-  .asst { background:#1c262f; align-self:flex-start; max-width:95%; }
-  .meta { font-size:.72rem; color:var(--mut); margin-top:4px; }
-  .err { color:var(--err); font-size:.85rem; }
-  .ok { color:var(--ok); font-size:.85rem; }
-  .warn { background:#3a2f10; border:1px solid #8a6d1c; color:#ffd97a; border-radius:10px; padding:10px; font-size:.82rem; margin-bottom:12px; }
-  .hint { font-size:.78rem; color:var(--mut); }
+  html,body { margin:0; background:var(--bg); color:var(--fg); }
+  body { font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-font-smoothing:antialiased;
+         background: radial-gradient(60rem 30rem at 85% -10%, rgba(139,124,255,.10), transparent 60%), var(--bg); min-height:100dvh; }
+  button,input,select,textarea { font:inherit; color:inherit; }
+  code,.mono { font-family:var(--mono); }
+  a { color:var(--accent2); }
+
+  header.top { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px; padding:10px 16px;
+               border-bottom:1px solid var(--line); background:rgba(8,9,12,.8); backdrop-filter:blur(10px); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-.01em; }
+  .brand small { font-weight:600; font-size:10px; letter-spacing:.08em; color:var(--accent2); background:var(--accent-soft); padding:2px 6px; border-radius:6px; }
+  .top .spacer { flex:1; }
+  .pill { display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:500;
+          border:1px solid var(--line2); background:var(--surface2); color:var(--fg2); white-space:nowrap; }
+  .pill .dot { width:6px; height:6px; border-radius:50%; background:var(--fg3); }
+  .pill.ok { border-color:rgba(12,163,12,.35); background:rgba(12,163,12,.1); color:var(--good-text); } .pill.ok .dot { background:var(--good); }
+  .pill.err { border-color:rgba(208,59,59,.35); background:rgba(208,59,59,.1); color:var(--crit-text); } .pill.err .dot { background:var(--crit); }
+  .pill.warn { border-color:rgba(250,178,25,.35); background:rgba(250,178,25,.1); color:var(--fg); } .pill.warn .dot { background:var(--warn); }
+
+  main { display:grid; grid-template-columns: 340px minmax(0,1fr); gap:16px; max-width:1200px; margin:0 auto; padding:16px; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0,1fr); } }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; min-width:0; }
+  .card > h2 { margin:0; padding:12px 16px; font-size:13px; font-weight:600; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .card .body { padding:14px 16px; }
+  .stack > * + * { margin-top:12px; }
+
+  label.f { display:block; font-size:12px; font-weight:500; color:var(--fg2); margin-bottom:6px; }
+  .hint { font-size:12px; color:var(--fg3); margin-top:5px; }
+  input[type=text],input[type=password],input[type=url],input[type=number],select,textarea {
+    width:100%; height:36px; padding:0 10px; border-radius:9px; border:1px solid var(--line2); background:var(--bg2); outline:none; }
+  textarea { height:auto; padding:8px 10px; resize:vertical; }
+  input:focus,select:focus,textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(139,124,255,.2); }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row > .grow { flex:1; min-width:0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:36px; padding:0 14px; border-radius:9px; font-weight:500;
+         border:1px solid var(--line2); background:var(--surface2); cursor:pointer; white-space:nowrap; }
+  .btn:hover { background:var(--surface3); }
+  .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+  .btn.primary:hover { background:var(--accent2); }
+  .btn.ghost { background:transparent; border-color:transparent; color:var(--fg2); } .btn.ghost:hover { background:var(--surface2); color:var(--fg); }
+  .btn.danger { background:rgba(208,59,59,.1); color:var(--crit-text); border-color:rgba(208,59,59,.3); }
+  .btn.sm { height:28px; padding:0 10px; font-size:12px; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn:focus-visible, .check:focus-within { outline:2px solid var(--accent); outline-offset:2px; }
+  .check { display:flex; gap:8px; align-items:flex-start; font-size:13px; color:var(--fg2); cursor:pointer; }
+  .check input { margin-top:3px; accent-color:var(--accent); }
+
+  .notice { border-radius:10px; padding:10px 12px; font-size:12.5px; line-height:1.45; }
+  .notice.warn { border:1px solid rgba(250,178,25,.3); background:rgba(250,178,25,.08); color:var(--fg2); }
+  .notice.err { border:1px solid rgba(208,59,59,.3); background:rgba(208,59,59,.08); color:var(--fg); }
+  .notice.ok { border:1px solid rgba(12,163,12,.3); background:rgba(12,163,12,.08); color:var(--fg); }
+  .notice b { color:var(--fg); }
+  .notice code { background:rgba(255,255,255,.06); padding:1px 5px; border-radius:5px; font-size:12px; }
+
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+  .stats div { background:var(--surface); padding:8px 10px; }
+  .stats span { display:block; font-size:11px; color:var(--fg3); }
+  .stats b { white-space:nowrap; font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+
+  /* Chat */
+  .chat { display:flex; flex-direction:column; height:calc(100dvh - 88px); min-height:520px; }
+  @media (max-width: 900px) { .chat { height:auto; min-height:70dvh; } }
+  #log { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
+  .empty { margin:auto; text-align:center; color:var(--fg3); max-width:380px; }
+  .empty h3 { color:var(--fg); font-size:15px; margin:10px 0 4px; }
+  .suggest { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:12px; }
+  .msg { max-width:min(760px, 92%); }
+  .msg.user { align-self:flex-end; }
+  .bubble { padding:10px 13px; border-radius:14px; white-space:pre-wrap; word-break:break-word; }
+  .user .bubble { background:var(--accent-soft); border:1px solid rgba(139,124,255,.25); border-bottom-right-radius:4px; }
+  .asst .bubble { background:var(--surface2); border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .error .bubble { background:rgba(208,59,59,.08); border:1px solid rgba(208,59,59,.3); }
+  .meta { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; margin-top:5px; font-size:11.5px; color:var(--fg3); }
+  .meta .tag { font-family:var(--mono); font-size:11px; border:1px solid var(--line); padding:0 6px; border-radius:6px; background:var(--surface2); }
+  .meta button { background:none; border:none; color:var(--fg3); cursor:pointer; padding:0; font-size:11.5px; }
+  .meta button:hover { color:var(--fg); text-decoration:underline; }
+  .typing .bubble { display:flex; gap:4px; align-items:center; height:38px; }
+  .typing i { width:6px; height:6px; border-radius:50%; background:var(--fg3); animation:blink 1.2s infinite; }
+  .typing i:nth-child(2){animation-delay:.2s} .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink { 0%,80%,100%{opacity:.25} 40%{opacity:1} }
+  @media (prefers-reduced-motion: reduce) { .typing i { animation:none; } }
+
+  .composer { border-top:1px solid var(--line); padding:12px; display:flex; gap:8px; align-items:flex-end; }
+  .composer textarea { min-height:40px; max-height:180px; resize:none; }
+
+  details.raw { border-top:1px solid var(--line); }
+  details.raw summary { cursor:pointer; padding:10px 16px; font-size:12.5px; color:var(--fg2); user-select:none; }
+  details.raw summary:hover { color:var(--fg); }
+  .rawbody { padding:0 16px 14px; display:grid; gap:10px; }
+  pre { margin:0; padding:10px 12px; background:var(--bg2); border:1px solid var(--line); border-radius:10px; font:12px/1.5 var(--mono);
+        color:var(--fg2); overflow:auto; max-height:260px; white-space:pre-wrap; word-break:break-all; }
+  .rawhead { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--fg3); margin-bottom:4px; }
+  @media (max-width: 560px) { .brand .subtitle { display:none; } .stats { grid-template-columns:repeat(2,1fr); } }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Devmark AI · Test de API Keys</h1>
-  <p class="sub">App de pruebas. La key se escribe aquí y <b>solo viaja a la API</b>; nada se guarda en un servidor.</p>
-  <div class="warn">Usa keys <b>dmk_test_</b> para probar. No pegues keys <b>dmk_live_</b> de producción en equipos ajenos.</div>
+<header class="top">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#0b0a1a" stroke="#a397ff" stroke-opacity=".5"/><path d="M10 9.5h6.2c4.1 0 6.8 2.6 6.8 6.5s-2.7 6.5-6.8 6.5H10z" fill="none" stroke="#a397ff" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16.2" cy="16" r="2.1" fill="#a397ff"/></svg>
+    <span>DEVmark <small>AI</small></span>
+    <span class="subtitle" style="color:var(--fg3);font-weight:400">· Test de API Keys</span>
+  </div>
+  <div class="spacer"></div>
+  <span id="connPill" class="pill" role="status"><span class="dot"></span><span>Sin probar</span></span>
+</header>
 
-  <div class="card">
-    <label>Base URL de la API</label>
-    <input id="base" value="https://ai.devmarkpe.com">
-    <label>API key</label>
-    <div class="row">
-      <input id="key" type="password" placeholder="dmk_test_..." autocomplete="off">
-      <button id="show" class="ghost" style="flex:0 0 auto" type="button">Ver</button>
-    </div>
-    <label style="display:flex;gap:6px;align-items:center"><input id="remember" type="checkbox" style="width:auto"> Recordar key en este navegador</label>
-    <label>Modelo</label>
-    <div class="row">
-      <input id="model" value="llama3.2:1b">
-      <button id="models" class="ghost" type="button">Probar conexión</button>
-    </div>
-    <div id="status" class="hint" style="margin-top:8px"></div>
+<main>
+  <!-- ============ Panel izquierdo: conexión y parámetros ============ -->
+  <div class="stack">
+    <section class="card">
+      <h2>Conexión</h2>
+      <div class="body stack">
+        <div>
+          <label class="f" for="base">Base URL</label>
+          <input id="base" type="url" value="https://ai.devmarkpe.com" spellcheck="false">
+        </div>
+        <div>
+          <label class="f" for="key">API key</label>
+          <div class="row">
+            <input id="key" class="grow mono" type="password" placeholder="dmk_test_…" autocomplete="off" spellcheck="false">
+            <button id="toggleKey" class="btn" type="button" aria-pressed="false">Ver</button>
+          </div>
+          <div id="keyInfo" class="hint">La key solo se envía a la Base URL. Nada pasa por otro servidor.</div>
+        </div>
+        <label class="check"><input id="remember" type="checkbox"> <span>Recordar en este navegador<br><span class="hint" style="margin:0">Se guarda en localStorage de este equipo. No lo uses en equipos compartidos.</span></span></label>
+        <button id="testBtn" class="btn primary" type="button" style="width:100%">Probar conexión</button>
+        <div id="connResult" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Parámetros</h2>
+      <div class="body stack">
+        <div>
+          <label class="f" for="model">Modelo</label>
+          <select id="model"><option value="llama3.2:1b">llama3.2:1b</option></select>
+          <div class="hint">Se cargan desde <code class="mono">GET /v1/models</code> al probar la conexión.</div>
+        </div>
+        <div>
+          <label class="f" for="system">System prompt</label>
+          <textarea id="system" rows="3">Eres un asistente útil. Responde en español, de forma breve.</textarea>
+        </div>
+        <div class="grid2">
+          <div>
+            <label class="f" for="temperature">Temperatura</label>
+            <input id="temperature" type="number" min="0" max="2" step="0.1" placeholder="por defecto">
+          </div>
+          <div>
+            <label class="f" for="maxTokens">Máx. tokens</label>
+            <input id="maxTokens" type="number" min="1" max="8192" step="1" placeholder="por defecto">
+          </div>
+        </div>
+        <label class="check"><input id="keepHistory" type="checkbox" checked> <span>Enviar historial (conversación)<br><span class="hint" style="margin:0">Desactívalo para probar cada mensaje por separado.</span></span></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Sesión <button id="resetStats" class="btn ghost sm" type="button">Reiniciar</button></h2>
+      <div class="body">
+        <div class="stats">
+          <div><span>Requests</span><b id="sReq">0</b></div>
+          <div><span>Errores</span><b id="sErr">0</b></div>
+          <div><span>Tokens</span><b id="sTok">0</b></div>
+          <div><span>Latencia</span><b id="sLat">—</b></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="notice warn">Usa keys <b>dmk_test_</b> para probar y revócalas desde el dashboard cuando termines. No pegues keys <b>dmk_live_</b> de producción en equipos ajenos.</div>
   </div>
 
-  <div class="card"><div id="log"></div></div>
-
-  <div class="card">
-    <div class="row">
-      <input id="text" placeholder="Escribe tu mensaje..." autocomplete="off">
-      <button id="send" style="flex:0 0 auto" type="button">Enviar</button>
+  <!-- ============ Panel derecho: chat ============ -->
+  <div class="stack" style="min-width:0">
+  <section class="card chat" aria-label="Chat de prueba">
+    <h2>
+      <span>Chat · <code id="endpointLabel" class="mono" style="font-weight:400;color:var(--fg2)">POST /v1/chat/completions</code></span>
+      <span class="row">
+        <button id="copyCurl" class="btn ghost sm" type="button" disabled>Copiar cURL</button>
+        <button id="clearBtn" class="btn ghost sm" type="button">Limpiar</button>
+      </span>
+    </h2>
+    <div id="log" aria-live="polite">
+      <div class="empty" id="empty">
+        <svg width="40" height="40" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#161920" stroke="rgba(255,255,255,.12)"/><path d="M9 12h14M9 16h10M9 20h7" stroke="#6d7382" stroke-width="2" stroke-linecap="round"/></svg>
+        <h3>Prueba tu API key</h3>
+        <p>Pega una key, pulsa <b>Probar conexión</b> y envía un mensaje. Verás la respuesta, los tokens y el tiempo de cada llamada.</p>
+        <div class="suggest">
+          <button class="btn sm" type="button" data-suggest="Hola, ¿quién eres?">Hola, ¿quién eres?</button>
+          <button class="btn sm" type="button" data-suggest="Resume en una frase qué es una API REST.">Resume qué es una API REST</button>
+          <button class="btn sm" type="button" data-suggest="Dame 3 ideas de nombres para una clínica dental.">3 nombres para una clínica</button>
+        </div>
+      </div>
     </div>
-    <div class="row" style="margin-top:8px">
-      <button id="clear" class="ghost" type="button">Limpiar chat</button>
+    <div class="composer">
+      <label for="text" class="sr">Mensaje</label>
+      <textarea id="text" class="grow" rows="1" placeholder="Escribe un mensaje…" title="Enter envía · Shift+Enter nueva línea"></textarea>
+      <button id="sendBtn" class="btn primary" type="button">Enviar</button>
     </div>
+  </section>
+  <section class="card">
+    <details class="raw" id="raw" style="border-top:0">
+      <summary>Última petición y respuesta (JSON)</summary>
+      <div class="rawbody">
+        <div><div class="rawhead"><span>Request</span><button class="btn ghost sm" type="button" data-copy="rawReq">Copiar</button></div><pre id="rawReq">—</pre></div>
+        <div><div class="rawhead"><span id="rawResLabel">Response</span><button class="btn ghost sm" type="button" data-copy="rawRes">Copiar</button></div><pre id="rawRes">—</pre></div>
+      </div>
+    </details>
+  </section>
   </div>
-  <p class="hint">Si ves <i>"Failed to fetch"</i>, la API aún no permite CORS desde esta web (ver README).</p>
-</div>
+</main>
 
 <script>
-const $ = id => document.getElementById(id);
-const history = [{role:"system", content:"Eres un asistente útil. Responde en español."}];
+"use strict";
+const $ = (id) => document.getElementById(id);
+const TIMEOUT_MS = 120000;
+const STORE = { key: "dmk_key", base: "dmk_base", model: "dmk_model" };
 
-if (localStorage.getItem("dmk_base")) $("base").value = localStorage.getItem("dmk_base");
-if (localStorage.getItem("dmk_key")) { $("key").value = localStorage.getItem("dmk_key"); $("remember").checked = true; }
+const state = { history: [], busy: false, abort: null, lastRequest: null, stats: { req: 0, err: 0, tok: 0, lat: [] } };
 
-$("show").onclick = () => { const k = $("key"); k.type = k.type === "password" ? "text" : "password"; };
-$("remember").onchange = e => {
-  if (e.target.checked) { localStorage.setItem("dmk_key", $("key").value); localStorage.setItem("dmk_base", $("base").value); }
-  else { localStorage.removeItem("dmk_key"); }
+/* ---------- Almacenamiento local (siempre protegido: puede fallar en modo privado) ---------- */
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-$("key").oninput = e => { if ($("remember").checked) localStorage.setItem("dmk_key", e.target.value); };
-$("clear").onclick = () => { $("log").innerHTML = ""; history.length = 1; };
 
-function addMsg(role, text, meta) {
+/* ---------- Utilidades ---------- */
+const baseUrl = () => $("base").value.trim().replace(/\/+$/, "");
+const apiKey = () => $("key").value.trim();
+const fmt = (n) => Number(n || 0).toLocaleString("es-PE");
+const fmtMs = (ms) => (ms < 1000 ? Math.round(ms) + " ms" : (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + " s");
+const maskKey = (k) => (k ? k.slice(0, Math.min(15, Math.max(4, k.length - 4))) + "…" : "");
+
+function keyKind(k) {
+  if (/^dmk_test_[A-Za-z0-9]{40}$/.test(k)) return "test";
+  if (/^dmk_live_[A-Za-z0-9]{40}$/.test(k)) return "live";
+  if (!k) return "empty";
+  return /^dmk_/.test(k) ? "malformed" : "other";
+}
+
+function setPill(kind, text) {
+  const p = $("connPill");
+  p.className = "pill" + (kind ? " " + kind : "");
+  p.lastElementChild.textContent = text;
+}
+
+function notice(kind, html) {
   const d = document.createElement("div");
-  d.className = "msg " + (role === "user" ? "user" : "asst");
-  d.textContent = text;
-  if (meta) { const m = document.createElement("div"); m.className = "meta"; m.textContent = meta; d.appendChild(m); }
-  $("log").appendChild(d);
-  d.scrollIntoView({behavior:"smooth", block:"end"});
+  d.className = "notice " + kind;
+  d.innerHTML = html;
+  return d;
 }
-function setStatus(html, cls) { const s = $("status"); s.className = cls || "hint"; s.innerHTML = html; }
 
-async function api(path, body) {
-  const base = $("base").value.replace(/\/$/, "");
-  const key = $("key").value.trim();
-  if (!key) { setStatus("Pega tu API key primero.", "err"); throw new Error("nokey"); }
-  const res = await fetch(base + path, {
-    method: body ? "POST" : "GET",
-    headers: {"Content-Type":"application/json", "Authorization":"Bearer " + key},
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    const map = {401:"Key inválida o ausente (401).", 403:"Sin permiso (403).", 429:"Límite excedido (429).", 503:"Servicio no disponible (503)."};
-    throw new Error((map[res.status] || ("HTTP " + res.status)) + " " + t.slice(0,200));
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } finally { t.remove(); }
   }
-  return res.json();
+  if (btn) { const o = btn.textContent; btn.textContent = "Copiado"; setTimeout(() => (btn.textContent = o), 1400); }
 }
 
-$("models").onclick = async () => {
-  setStatus("Conectando...", "hint");
+/* ---------- Diagnóstico de errores: qué pasó y qué hacer ---------- */
+function explain(err) {
+  if (err.kind === "abort") return { title: "Cancelado", hint: "Cancelaste la petición." };
+  if (err.kind === "timeout") return { title: "Tiempo agotado (" + TIMEOUT_MS / 1000 + " s)", hint: "El modelo tardó demasiado. Reintenta; si se repite, revisa el estado del servidor." };
+  if (err.kind === "network") {
+    const origin = location.origin === "null" ? "null (abriste el archivo con doble clic)" : location.origin;
+    return {
+      title: "No se pudo conectar",
+      hint:
+        "Normalmente es <b>CORS</b>: la API no permite este origen. Origen actual: <code>" + escapeHtml(origin) + "</code>.<br>" +
+        (location.protocol === "file:"
+          ? "Sirve la app con <code>python -m http.server 8000</code> y abre <code>http://localhost:8000</code> (el origen <code>null</code> no se permite por seguridad)."
+          : "Añade este origen en el servidor: <code>CORS_ALLOWED_ORIGINS=…," + escapeHtml(location.origin) + "</code> en <code>.env</code> y reinicia <code>devmark-ai</code>.") +
+        "<br>También puede ser: Base URL incorrecta, sin internet o servidor caído.",
+    };
+  }
+  const detail = err.detail ? " <code>" + escapeHtml(err.detail) + "</code>" : "";
+  const map = {
+    400: ["Petición inválida (400)", "El modelo no está permitido o el mensaje es demasiado largo." + detail],
+    401: ["Key no válida (401)", "Key ausente, mal copiada, <b>revocada</b> o <b>expirada</b>." + detail + " Revísala en el dashboard → API Keys."],
+    403: ["Sin permiso (403)", "La key no tiene el permiso de este endpoint o su aplicación está deshabilitada." + detail],
+    404: ["No encontrado (404)", "El modelo no existe en el servidor o la Base URL es incorrecta." + detail],
+    422: ["Formato inválido (422)", "El cuerpo de la petición no es válido." + detail],
+    429: ["Límite excedido (429)", "Demasiadas peticiones por minuto. Espera unos segundos y reintenta." + detail],
+    502: ["Error del modelo (502)", "Ollama devolvió un error." + detail],
+    503: ["Modelo no disponible (503)", "Ollama no responde en el servidor." + detail],
+    504: ["Modelo lento (504)", "El modelo tardó demasiado en el servidor. Reintenta." + detail],
+  };
+  const [title, hint] = map[err.status] || ["Error HTTP " + err.status, "Respuesta inesperada." + detail];
+  return { title, hint };
+}
+
+/* ---------- Llamada a la API ---------- */
+async function callApi(path, body) {
+  const url = baseUrl() + path;
+  const key = apiKey();
+  if (!key) throw Object.assign(new Error("nokey"), { kind: "nokey" });
+  const ctrl = new AbortController();
+  state.abort = ctrl;
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, TIMEOUT_MS);
+  const started = performance.now();
+  state.lastRequest = { url, method: body ? "POST" : "GET", body };
+  $("rawReq").textContent = (body ? "POST " : "GET ") + url + "\nAuthorization: Bearer " + maskKey(key) + "\n\n" + (body ? JSON.stringify(body, null, 2) : "");
+  $("copyCurl").disabled = false;
   try {
-    const d = await api("/v1/models");
-    const names = (d.data || []).map(m => m.id).join(", ") || "(sin modelos)";
-    setStatus("Conexión OK · modelos: " + names, "ok");
-  } catch (e) {
-    setStatus(e.message === "Failed to fetch"
-      ? "No se pudo conectar (¿CORS aún no habilitado en la API?). Ver README."
-      : "Error: " + e.message, "err");
+    let res;
+    try {
+      res = await fetch(url, {
+        method: body ? "POST" : "GET",
+        headers: body ? { "Content-Type": "application/json", Authorization: "Bearer " + key } : { Authorization: "Bearer " + key },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: ctrl.signal,
+        cache: "no-store",
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+      });
+    } catch (e) {
+      if (e.name === "AbortError") throw Object.assign(new Error("abort"), { kind: timedOut ? "timeout" : "abort" });
+      throw Object.assign(new Error("network"), { kind: "network" });
+    }
+    const ms = performance.now() - started;
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch {}
+    $("rawResLabel").textContent = "Response · HTTP " + res.status + " · " + fmtMs(ms);
+    $("rawRes").textContent = data ? JSON.stringify(data, null, 2) : text || "(vacío)";
+    if (!res.ok) {
+      const detail = (data && (data.detail || (data.error && data.error.message))) || text.slice(0, 160);
+      throw Object.assign(new Error("http"), { kind: "http", status: res.status, detail: typeof detail === "string" ? detail : JSON.stringify(detail), ms });
+    }
+    return { data, ms };
+  } finally {
+    clearTimeout(timer);
+    state.abort = null;
   }
+}
+
+/* ---------- Estadísticas de sesión ---------- */
+function track(ok, tokens, ms) {
+  const s = state.stats;
+  s.req += 1; if (!ok) s.err += 1; s.tok += tokens || 0; if (ok && ms) s.lat.push(ms);
+  renderStats();
+}
+function renderStats() {
+  const s = state.stats;
+  $("sReq").textContent = fmt(s.req);
+  $("sErr").textContent = fmt(s.err);
+  $("sTok").textContent = fmt(s.tok);
+  $("sLat").textContent = s.lat.length ? fmtMs(s.lat.reduce((a, b) => a + b, 0) / s.lat.length) : "—";
+}
+$("resetStats").onclick = () => { state.stats = { req: 0, err: 0, tok: 0, lat: [] }; renderStats(); };
+
+/* ---------- Key y conexión ---------- */
+function updateKeyInfo() {
+  const k = apiKey();
+  const kind = keyKind(k);
+  const info = $("keyInfo");
+  const msgs = {
+    empty: "La key solo se envía a la Base URL. Nada pasa por otro servidor.",
+    test: "✓ Key de pruebas (dmk_test_).",
+    live: "⚠ Key de <b>producción</b> (dmk_live_). Úsala solo en tu equipo y revócala si la compartiste.",
+    malformed: "⚠ Parece una key de Devmark incompleta: deben ser <code class=\"mono\">dmk_test_</code>/<code class=\"mono\">dmk_live_</code> + 40 caracteres.",
+    other: "Key sin formato dmk_ (p. ej. la key heredada del .env).",
+  };
+  info.innerHTML = msgs[kind];
+  info.style.color = kind === "live" || kind === "malformed" ? "var(--warn)" : kind === "test" ? "var(--good-text)" : "";
+}
+
+$("toggleKey").onclick = () => {
+  const k = $("key"); const show = k.type === "password";
+  k.type = show ? "text" : "password";
+  $("toggleKey").textContent = show ? "Ocultar" : "Ver";
+  $("toggleKey").setAttribute("aria-pressed", String(show));
+};
+$("key").addEventListener("input", () => { updateKeyInfo(); if ($("remember").checked) store.set(STORE.key, apiKey()); setPill("", "Sin probar"); });
+$("base").addEventListener("change", () => { store.set(STORE.base, baseUrl()); setPill("", "Sin probar"); });
+$("remember").addEventListener("change", (e) => { if (e.target.checked) store.set(STORE.key, apiKey()); else store.del(STORE.key); });
+$("model").addEventListener("change", () => store.set(STORE.model, $("model").value));
+
+async function testConnection() {
+  const out = $("connResult");
+  out.replaceChildren();
+  if (!apiKey()) { out.append(notice("err", "Pega tu API key primero.")); $("key").focus(); return; }
+  const btn = $("testBtn"); btn.disabled = true; btn.textContent = "Probando…";
+  setPill("", "Probando…");
+  try {
+    const { data, ms } = await callApi("/v1/models");
+    const models = (data && data.data ? data.data : []).map((m) => m.id);
+    const sel = $("model"); const current = store.get(STORE.model) || sel.value;
+    if (models.length) {
+      sel.replaceChildren(...models.map((id) => new Option(id, id)));
+      sel.value = models.includes(current) ? current : models[0];
+    }
+    setPill("ok", "Conectado · " + fmtMs(ms));
+    out.append(notice("ok", "<b>Conexión correcta.</b> La key es válida y tiene permiso <code>models</code>. " + models.length + " modelo(s): " + models.map((m) => "<code>" + escapeHtml(m) + "</code>").join(" ")));
+    track(true, 0, ms);
+  } catch (err) {
+    const e = explain(err);
+    setPill("err", err.status ? "Error " + err.status : "Sin conexión");
+    out.append(notice("err", "<b>" + e.title + "</b><br>" + e.hint));
+    track(false, 0, 0);
+  } finally { btn.disabled = false; btn.textContent = "Probar conexión"; }
+}
+$("testBtn").onclick = testConnection;
+
+/* ---------- Chat ---------- */
+function addMessage(kind, text, metaParts) {
+  $("empty")?.remove();
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + kind;
+  const b = document.createElement("div");
+  b.className = "bubble";
+  if (kind === "error") b.innerHTML = text; else b.textContent = text;
+  wrap.append(b);
+  if (metaParts) {
+    const m = document.createElement("div");
+    m.className = "meta";
+    for (const part of metaParts) m.append(part);
+    wrap.append(m);
+  }
+  $("log").append(wrap);
+  wrap.scrollIntoView({ behavior: "smooth", block: "end" });
+  return wrap;
+}
+const tag = (t) => Object.assign(document.createElement("span"), { className: "tag", textContent: t });
+const txt = (t) => Object.assign(document.createElement("span"), { textContent: t });
+function action(label, fn) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => fn(b); return b; }
+
+function buildBody() {
+  const messages = [];
+  const sys = $("system").value.trim();
+  if (sys) messages.push({ role: "system", content: sys });
+  messages.push(...($("keepHistory").checked ? state.history : state.history.slice(-1)));
+  const body = { model: $("model").value, messages, stream: false };
+  const t = $("temperature").value; if (t !== "") body.temperature = Number(t);
+  const mt = $("maxTokens").value; if (mt !== "") body.max_tokens = Number(mt);
+  return body;
+}
+
+function setBusy(on) {
+  state.busy = on;
+  const btn = $("sendBtn");
+  btn.textContent = on ? "Cancelar" : "Enviar";
+  btn.className = on ? "btn danger" : "btn primary";
+}
+
+async function send(textOverride) {
+  if (state.busy) { state.abort?.abort(); return; }
+  const input = $("text");
+  const text = (textOverride ?? input.value).trim();
+  if (!text) return;
+  if (!apiKey()) { $("connResult").replaceChildren(notice("err", "Pega tu API key primero.")); $("key").focus(); return; }
+  input.value = ""; autosize();
+  addMessage("user", text);
+  state.history.push({ role: "user", content: text });
+  const typing = addMessage("asst typing", "");
+  typing.firstChild.innerHTML = "<i></i><i></i><i></i>";
+  setBusy(true);
+  try {
+    const { data, ms } = await callApi("/v1/chat/completions", buildBody());
+    typing.remove();
+    const choice = (data.choices && data.choices[0]) || {};
+    const reply = (choice.message && choice.message.content) || "";
+    const u = data.usage || {};
+    state.history.push({ role: "assistant", content: reply });
+    const meta = [
+      tag(data.model || "?"),
+      txt(fmtMs(ms)),
+      txt(fmt(u.prompt_tokens) + " + " + fmt(u.completion_tokens) + " = " + fmt(u.total_tokens) + " tokens"),
+    ];
+    if (choice.finish_reason === "length") meta.push(Object.assign(tag("cortada por max_tokens"), { style: "color:var(--warn)" }));
+    meta.push(action("Copiar", (b) => copyText(reply, b)));
+    addMessage("asst", reply || "(respuesta vacía)", meta);
+    setPill("ok", "Conectado · " + fmtMs(ms));
+    track(true, u.total_tokens, ms);
+  } catch (err) {
+    typing.remove();
+    state.history.pop();
+    if (err.kind === "nokey") return;
+    const e = explain(err);
+    addMessage("error", "<b>" + e.title + "</b><br>" + e.hint, [action("Reintentar", () => send(text))]);
+    if (err.kind !== "abort") { setPill("err", err.status ? "Error " + err.status : "Sin conexión"); track(false, 0, 0); }
+  } finally { setBusy(false); input.focus(); }
+}
+
+function autosize() { const t = $("text"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 180) + "px"; }
+$("text").addEventListener("input", autosize);
+$("text").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+$("sendBtn").onclick = () => send();
+document.querySelectorAll("[data-suggest]").forEach((b) => (b.onclick = () => send(b.dataset.suggest)));
+document.querySelectorAll("[data-copy]").forEach((b) => (b.onclick = () => copyText($(b.dataset.copy).textContent, b)));
+
+$("clearBtn").onclick = () => {
+  state.history = [];
+  $("log").replaceChildren();
+  addMessage("asst", "Conversación reiniciada. El siguiente mensaje empieza de cero.");
 };
 
-async function send() {
-  const t = $("text").value.trim();
-  if (!t) return;
-  $("text").value = "";
-  $("send").disabled = true;
-  addMsg("user", t);
-  history.push({role:"user", content:t});
-  try {
-    const d = await api("/v1/chat/completions", {model:$("model").value.trim(), messages:history, stream:false});
-    const reply = d.choices[0].message.content;
-    const u = d.usage || {};
-    addMsg("asst", reply, "tokens: " + (u.total_tokens ?? "?") + " · " + d.model);
-    history.push({role:"assistant", content:reply});
-    setStatus("OK.", "ok");
-  } catch (e) {
-    if (e.message !== "nokey") setStatus("Error: " + e.message, "err");
-  } finally { $("send").disabled = false; }
+/* cURL de la última petición (la key va enmascarada: reemplázala al pegarlo) */
+$("copyCurl").onclick = (e) => {
+  const r = state.lastRequest; if (!r) return;
+  let cmd = "curl " + r.url + " \\\n  -H \"Authorization: Bearer $DEVMARK_API_KEY\"";
+  if (r.body) cmd += " \\\n  -H \"Content-Type: application/json\" \\\n  -d '" + JSON.stringify(r.body).replace(/'/g, "'\\''") + "'";
+  copyText(cmd, e.currentTarget);
+};
+
+/* ---------- Estado inicial ---------- */
+if (store.get(STORE.base)) $("base").value = store.get(STORE.base);
+if (store.get(STORE.key)) { $("key").value = store.get(STORE.key); $("remember").checked = true; }
+if (store.get(STORE.model)) { const m = store.get(STORE.model); if (![...$("model").options].some((o) => o.value === m)) $("model").add(new Option(m, m)); $("model").value = m; }
+updateKeyInfo();
+if (location.protocol === "file:") {
+  $("connResult").append(notice("warn", "Abriste el archivo directamente (origen <code>null</code>). El navegador bloqueará la API por CORS. Sírvelo con <code>python -m http.server 8000</code> y abre <code>http://localhost:8000</code>."));
 }
-$("send").onclick = send;
-$("text").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
 </script>
 </body>
 </html>
