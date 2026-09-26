@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Devmark AI · Test de API Keys</title>
+<style>
+  :root { color-scheme: dark; --bg:#0f141b; --card:#182029; --fg:#e8eef4; --mut:#8fa0b3; --acc:#4da3ff; --ok:#3ecf8e; --err:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+  .wrap { max-width:720px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.25rem; margin:8px 0 2px; }
+  p.sub { color:var(--mut); font-size:.85rem; margin:0 0 12px; }
+  .card { background:var(--card); border:1px solid #26313d; border-radius:12px; padding:12px; margin-bottom:12px; }
+  label { display:block; font-size:.75rem; color:var(--mut); margin:8px 0 4px; }
+  input,select,textarea,button { font-size:.95rem; border-radius:8px; border:1px solid #2c3947; }
+  input,select,textarea { width:100%; padding:10px; background:#0d1319; color:var(--fg); }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  button { padding:10px 14px; background:var(--acc); color:#04121f; border:none; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--acc); border:1px solid var(--acc); }
+  button:disabled { opacity:.5; cursor:wait; }
+  #log { min-height:200px; max-height:50vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  .msg { padding:10px 12px; border-radius:10px; white-space:pre-wrap; word-break:break-word; }
+  .user { background:#23405e; align-self:flex-end; max-width:90%; }
+  .asst { background:#1c262f; align-self:flex-start; max-width:95%; }
+  .meta { font-size:.72rem; color:var(--mut); margin-top:4px; }
+  .err { color:var(--err); font-size:.85rem; }
+  .ok { color:var(--ok); font-size:.85rem; }
+  .warn { background:#3a2f10; border:1px solid #8a6d1c; color:#ffd97a; border-radius:10px; padding:10px; font-size:.82rem; margin-bottom:12px; }
+  .hint { font-size:.78rem; color:var(--mut); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Devmark AI · Test de API Keys</h1>
+  <p class="sub">App de pruebas. La key se escribe aquí y <b>solo viaja a la API</b>; nada se guarda en un servidor.</p>
+  <div class="warn">Usa keys <b>dmk_test_</b> para probar. No pegues keys <b>dmk_live_</b> de producción en equipos ajenos.</div>
+
+  <div class="card">
+    <label>Base URL de la API</label>
+    <input id="base" value="https://ai.devmarkpe.com">
+    <label>API key</label>
+    <div class="row">
+      <input id="key" type="password" placeholder="dmk_test_..." autocomplete="off">
+      <button id="show" class="ghost" style="flex:0 0 auto" type="button">Ver</button>
+    </div>
+    <label style="display:flex;gap:6px;align-items:center"><input id="remember" type="checkbox" style="width:auto"> Recordar key en este navegador</label>
+    <label>Modelo</label>
+    <div class="row">
+      <input id="model" value="llama3.2:1b">
+      <button id="models" class="ghost" type="button">Probar conexión</button>
+    </div>
+    <div id="status" class="hint" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card"><div id="log"></div></div>
+
+  <div class="card">
+    <div class="row">
+      <input id="text" placeholder="Escribe tu mensaje..." autocomplete="off">
+      <button id="send" style="flex:0 0 auto" type="button">Enviar</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="clear" class="ghost" type="button">Limpiar chat</button>
+    </div>
+  </div>
+  <p class="hint">Si ves <i>"Failed to fetch"</i>, la API aún no permite CORS desde esta web (ver README).</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const history = [{role:"system", content:"Eres un asistente útil. Responde en español."}];
+
+if (localStorage.getItem("dmk_base")) $("base").value = localStorage.getItem("dmk_base");
+if (localStorage.getItem("dmk_key")) { $("key").value = localStorage.getItem("dmk_key"); $("remember").checked = true; }
+
+$("show").onclick = () => { const k = $("key"); k.type = k.type === "password" ? "text" : "password"; };
+$("remember").onchange = e => {
+  if (e.target.checked) { localStorage.setItem("dmk_key", $("key").value); localStorage.setItem("dmk_base", $("base").value); }
+  else { localStorage.removeItem("dmk_key"); }
+};
+$("key").oninput = e => { if ($("remember").checked) localStorage.setItem("dmk_key", e.target.value); };
+$("clear").onclick = () => { $("log").innerHTML = ""; history.length = 1; };
+
+function addMsg(role, text, meta) {
+  const d = document.createElement("div");
+  d.className = "msg " + (role === "user" ? "user" : "asst");
+  d.textContent = text;
+  if (meta) { const m = document.createElement("div"); m.className = "meta"; m.textContent = meta; d.appendChild(m); }
+  $("log").appendChild(d);
+  d.scrollIntoView({behavior:"smooth", block:"end"});
+}
+function setStatus(html, cls) { const s = $("status"); s.className = cls || "hint"; s.innerHTML = html; }
+
+async function api(path, body) {
+  const base = $("base").value.replace(/\/$/, "");
+  const key = $("key").value.trim();
+  if (!key) { setStatus("Pega tu API key primero.", "err"); throw new Error("nokey"); }
+  const res = await fetch(base + path, {
+    method: body ? "POST" : "GET",
+    headers: {"Content-Type":"application/json", "Authorization":"Bearer " + key},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    const map = {401:"Key inválida o ausente (401).", 403:"Sin permiso (403).", 429:"Límite excedido (429).", 503:"Servicio no disponible (503)."};
+    throw new Error((map[res.status] || ("HTTP " + res.status)) + " " + t.slice(0,200));
+  }
+  return res.json();
+}
+
+$("models").onclick = async () => {
+  setStatus("Conectando...", "hint");
+  try {
+    const d = await api("/v1/models");
+    const names = (d.data || []).map(m => m.id).join(", ") || "(sin modelos)";
+    setStatus("Conexión OK · modelos: " + names, "ok");
+  } catch (e) {
+    setStatus(e.message === "Failed to fetch"
+      ? "No se pudo conectar (¿CORS aún no habilitado en la API?). Ver README."
+      : "Error: " + e.message, "err");
+  }
+};
+
+async function send() {
+  const t = $("text").value.trim();
+  if (!t) return;
+  $("text").value = "";
+  $("send").disabled = true;
+  addMsg("user", t);
+  history.push({role:"user", content:t});
+  try {
+    const d = await api("/v1/chat/completions", {model:$("model").value.trim(), messages:history, stream:false});
+    const reply = d.choices[0].message.content;
+    const u = d.usage || {};
+    addMsg("asst", reply, "tokens: " + (u.total_tokens ?? "?") + " · " + d.model);
+    history.push({role:"assistant", content:reply});
+    setStatus("OK.", "ok");
+  } catch (e) {
+    if (e.message !== "nokey") setStatus("Error: " + e.message, "err");
+  } finally { $("send").disabled = false; }
+}
+$("send").onclick = send;
+$("text").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+</script>
+</body>
+</html>
